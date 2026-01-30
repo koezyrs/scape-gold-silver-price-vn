@@ -7,8 +7,8 @@ from bs4 import BeautifulSoup
 from typing import Optional
 from datetime import datetime
 
-GOLD_URL = "https://giavang.phuquygroup.vn"
-SILVER_URL = "https://giabac.phuquygroup.vn"
+GOLD_URL = "http://giavang.phuquygroup.vn"
+SILVER_URL = "http://giabac.phuquygroup.vn"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -57,15 +57,56 @@ def format_price(price_str: str) -> Optional[int]:
         return None
 
 
-def parse_phuquy_prices(html: str) -> list[dict]:
+def parse_gold_prices(html: str) -> list[dict]:
     """
-    Extract price data from Phú Quý HTML.
+    Extract gold price data from giavang.phuquygroup.vn HTML.
 
     Args:
-        html: HTML content from price page
+        html: HTML content from gold price page
 
     Returns:
-        List of price dictionaries
+        List of gold price dictionaries
+    """
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, "lxml")
+    prices = []
+
+    rows = soup.select("table tbody tr")
+
+    for row in rows:
+        cells = row.find_all("td")
+        if len(cells) < 3:
+            continue
+
+        product_name = cells[0].get_text(strip=True)
+        buy_cell = row.select_one("td.buy-price")
+        sell_cell = row.select_one("td.sell-price")
+
+        buy_price = format_price(buy_cell.get_text(strip=True)) if buy_cell else None
+        sell_price = format_price(sell_cell.get_text(strip=True)) if sell_cell else None
+
+        if product_name and (buy_price is not None or sell_price is not None):
+            prices.append({
+                "product": product_name,
+                "unit": "VNĐ/Chỉ",
+                "buy_price": buy_price,
+                "sell_price": sell_price,
+            })
+
+    return prices
+
+
+def parse_silver_prices(html: str) -> list[dict]:
+    """
+    Extract silver price data from giabac.phuquygroup.vn HTML.
+
+    Args:
+        html: HTML content from silver price page
+
+    Returns:
+        List of silver price dictionaries
     """
     if not html:
         return []
@@ -116,7 +157,7 @@ def get_gold_prices() -> list[dict]:
         List of gold price dictionaries
     """
     html = fetch_page(GOLD_URL)
-    return parse_phuquy_prices(html)
+    return parse_gold_prices(html)
 
 
 def get_silver_prices() -> list[dict]:
@@ -127,7 +168,7 @@ def get_silver_prices() -> list[dict]:
         List of silver price dictionaries
     """
     html = fetch_page(SILVER_URL)
-    return parse_phuquy_prices(html)
+    return parse_silver_prices(html)
 
 
 def get_all_prices() -> dict:
