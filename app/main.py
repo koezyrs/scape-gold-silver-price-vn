@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from datetime import datetime
 
-from .scraper import get_all_prices, get_gold_prices, get_silver_prices, BASE_URL
+from .scraper import get_all_prices, get_gold_prices, get_silver_prices, GOLD_URL, SILVER_URL
 
 app = FastAPI(
     title="Gold & Silver Price Scraper API",
@@ -57,7 +57,7 @@ async def get_gold():
         gold_prices = get_gold_prices()
         return JSONResponse(content={
             "timestamp": datetime.now().isoformat(),
-            "source": BASE_URL + "/",
+            "source": GOLD_URL,
             "gold": gold_prices
         })
     except Exception as e:
@@ -76,7 +76,7 @@ async def get_silver():
         silver_prices = get_silver_prices()
         return JSONResponse(content={
             "timestamp": datetime.now().isoformat(),
-            "source": BASE_URL + "/",
+            "source": SILVER_URL,
             "silver": silver_prices
         })
     except Exception as e:

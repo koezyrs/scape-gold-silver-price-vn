@@ -1,5 +1,5 @@
 """
-Scraper module for fetching gold and silver prices from btmc.vn
+Scraper module for fetching gold and silver prices from Phú Quý Group
 """
 
 import requests
@@ -7,155 +7,102 @@ from bs4 import BeautifulSoup
 from typing import Optional
 from datetime import datetime
 
-BASE_URL = "https://btmc.vn"
-GOLD_ENDPOINT = "/Home/BGiaVang"
-SILVER_ENDPOINT = "/Home/BGiaBac"
+GOLD_URL = "https://giavang.phuquygroup.vn"
+SILVER_URL = "https://giabac.phuquygroup.vn"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.5",
-    "Referer": "https://btmc.vn/",
 }
 
 
-def fetch_page(endpoint: str) -> Optional[str]:
+def fetch_page(url: str) -> Optional[str]:
     """
-    Fetch HTML content from btmc.vn endpoint.
+    Fetch HTML content from URL.
 
     Args:
-        endpoint: The API endpoint to fetch (e.g., /Home/BGiaVang)
+        url: The full URL to fetch
 
     Returns:
         HTML content as string, or None if request fails
     """
     try:
-        url = f"{BASE_URL}{endpoint}"
         response = requests.get(url, headers=HEADERS, timeout=10)
         response.raise_for_status()
         return response.text
     except requests.RequestException as e:
-        print(f"Error fetching {endpoint}: {e}")
+        print(f"Error fetching {url}: {e}")
         return None
 
 
-def format_price(price_str: str) -> Optional[float]:
+def format_price(price_str: str) -> Optional[int]:
     """
-    Convert price string to float (in thousands VND).
+    Convert price string to integer (in VND).
 
     Args:
-        price_str: Price string like "17,800" or "17800" or "51306.539"
+        price_str: Price string like "3,848,000"
 
     Returns:
-        Float price value, or None if parsing fails
+        Integer price value, or None if parsing fails
     """
     if not price_str:
         return None
     try:
         cleaned = price_str.strip().replace(",", "")
-        # Handle non-numeric values like "Liên hệ"
-        if not cleaned or not cleaned.replace(".", "").isdigit():
+        if not cleaned or not cleaned.isdigit():
             return None
-        return float(cleaned)
+        return int(cleaned)
     except (ValueError, AttributeError):
         return None
 
 
-def parse_gold_prices(html: str) -> list[dict]:
+def parse_phuquy_prices(html: str) -> list[dict]:
     """
-    Extract gold price data from HTML.
+    Extract price data from Phú Quý HTML.
 
     Args:
-        html: HTML content from gold price endpoint
+        html: HTML content from price page
 
     Returns:
-        List of gold price dictionaries
+        List of price dictionaries
     """
     if not html:
         return []
 
     soup = BeautifulSoup(html, "lxml")
     prices = []
+    current_category = ""
 
-    rows = soup.select("table tr")
+    rows = soup.select("table tbody tr")
 
     for row in rows:
-        cells = row.find_all("td")
-        num_cells = len(cells)
-
-        # Skip header rows or rows with insufficient cells
-        if num_cells < 4:
+        # Check if this is a category header row
+        header = row.select_one("td[colspan] .branch_title")
+        if header:
+            current_category = header.get_text(strip=True)
             continue
 
-        # Determine cell positions based on row structure
-        # 5 cells: [image], name, purity, buy, sell
-        # 4 cells: name, purity, buy, sell
-        if num_cells >= 5:
-            name_idx, purity_idx, buy_idx, sell_idx = 1, 2, 3, 4
-        else:
-            name_idx, purity_idx, buy_idx, sell_idx = 0, 1, 2, 3
+        # Get product cells
+        product_cell = row.select_one("td.col-product")
+        unit_cell = row.select_one("td.col-unit-value")
+        buy_cells = row.select("td.col-buy-cell")
 
-        product_name = cells[name_idx].get_text(strip=True)
-        purity = cells[purity_idx].get_text(strip=True)
-        buy_price = format_price(cells[buy_idx].get_text(strip=True))
-        sell_price = format_price(cells[sell_idx].get_text(strip=True))
+        if not product_cell or len(buy_cells) < 2:
+            continue
+
+        product_name = product_cell.get_text(strip=True)
+        unit = unit_cell.get_text(strip=True) if unit_cell else ""
+        buy_price = format_price(buy_cells[0].get_text(strip=True))
+        sell_price = format_price(buy_cells[1].get_text(strip=True))
 
         if product_name and (buy_price is not None or sell_price is not None):
             prices.append({
+                "category": current_category,
                 "product": product_name,
-                "purity": purity,
+                "unit": unit,
                 "buy_price": buy_price,
                 "sell_price": sell_price,
-                "unit": "nghìn VNĐ/lượng"
-            })
-
-    return prices
-
-
-def parse_silver_prices(html: str) -> list[dict]:
-    """
-    Extract silver price data from HTML.
-
-    Args:
-        html: HTML content from silver price endpoint
-
-    Returns:
-        List of silver price dictionaries
-    """
-    if not html:
-        return []
-
-    soup = BeautifulSoup(html, "lxml")
-    prices = []
-
-    rows = soup.select("table tr")
-
-    for row in rows:
-        cells = row.find_all("td")
-        num_cells = len(cells)
-
-        # Skip header rows or rows with insufficient cells
-        if num_cells < 3:
-            continue
-
-        # Determine cell positions based on row structure
-        # 4 cells: [image], product, buy, sell
-        # 3 cells: product, buy, sell
-        if num_cells >= 4:
-            product_idx, buy_idx, sell_idx = 1, 2, 3
-        else:
-            product_idx, buy_idx, sell_idx = 0, 1, 2
-
-        product_name = cells[product_idx].get_text(strip=True)
-        buy_price = format_price(cells[buy_idx].get_text(strip=True))
-        sell_price = format_price(cells[sell_idx].get_text(strip=True))
-
-        if product_name and (buy_price is not None or sell_price is not None):
-            prices.append({
-                "product": product_name,
-                "buy_price": buy_price,
-                "sell_price": sell_price,
-                "unit": "nghìn VNĐ"
             })
 
     return prices
@@ -163,24 +110,24 @@ def parse_silver_prices(html: str) -> list[dict]:
 
 def get_gold_prices() -> list[dict]:
     """
-    Fetch and parse gold prices from btmc.vn.
+    Fetch and parse gold prices from giavang.phuquygroup.vn.
 
     Returns:
         List of gold price dictionaries
     """
-    html = fetch_page(GOLD_ENDPOINT)
-    return parse_gold_prices(html)
+    html = fetch_page(GOLD_URL)
+    return parse_phuquy_prices(html)
 
 
 def get_silver_prices() -> list[dict]:
     """
-    Fetch and parse silver prices from btmc.vn.
+    Fetch and parse silver prices from giabac.phuquygroup.vn.
 
     Returns:
         List of silver price dictionaries
     """
-    html = fetch_page(SILVER_ENDPOINT)
-    return parse_silver_prices(html)
+    html = fetch_page(SILVER_URL)
+    return parse_phuquy_prices(html)
 
 
 def get_all_prices() -> dict:
@@ -188,11 +135,14 @@ def get_all_prices() -> dict:
     Fetch all gold and silver prices.
 
     Returns:
-        Dictionary containing timestamp, source, gold prices, and silver prices
+        Dictionary containing timestamp, sources, gold prices, and silver prices
     """
     return {
         "timestamp": datetime.now().isoformat(),
-        "source": BASE_URL + "/",
+        "sources": {
+            "gold": GOLD_URL,
+            "silver": SILVER_URL
+        },
         "gold": get_gold_prices(),
         "silver": get_silver_prices()
     }

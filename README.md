@@ -1,6 +1,8 @@
 # Gold & Silver Price Scraper API
 
-A FastAPI web service that scrapes gold and silver prices from [btmc.vn](https://btmc.vn/).
+A FastAPI web service that scrapes gold and silver prices from Phú Quý Group:
+- Gold: [giavang.phuquygroup.vn](https://giavang.phuquygroup.vn/)
+- Silver: [giabac.phuquygroup.vn](https://giabac.phuquygroup.vn/)
 
 ## Project Structure
 
@@ -38,36 +40,40 @@ The API will be available at `http://localhost:8000`
 
 ## API Endpoints
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /` | Health check |
-| `GET /prices` | Get all gold & silver prices |
-| `GET /prices/gold` | Get gold prices only |
-| `GET /prices/silver` | Get silver prices only |
+| Endpoint             | Description                  |
+| -------------------- | ---------------------------- |
+| `GET /`              | Health check                 |
+| `GET /prices`        | Get all gold & silver prices |
+| `GET /prices/gold`   | Get gold prices only         |
+| `GET /prices/silver` | Get silver prices only       |
 
 ### Example Response
 
 ```json
 {
-    "timestamp": "2026-01-31T10:30:00",
-    "source": "https://btmc.vn/",
-    "gold": [
-        {
-            "product": "VÀNG MIẾNG VRTL BẢO TÍNMINH CHÂU",
-            "purity": "999.9(24k)",
-            "buy_price": 17800.0,
-            "sell_price": 18100.0,
-            "unit": "nghìn VNĐ/lượng"
-        }
-    ],
-    "silver": [
-        {
-            "product": "BẠC MIẾNGBẠC RỒNG THĂNG LONG Ag 9991 LƯỢNG",
-            "buy_price": 3848.0,
-            "sell_price": 3967.0,
-            "unit": "nghìn VNĐ"
-        }
-    ]
+  "timestamp": "2026-01-31T10:30:00",
+  "sources": {
+    "gold": "https://giavang.phuquygroup.vn",
+    "silver": "https://giabac.phuquygroup.vn"
+  },
+  "gold": [
+    {
+      "category": "VÀNG THƯƠNG HIỆU PHÚ QUÝ",
+      "product": "VÀNG MIẾNG PHÚ QUÝ 999.9 1 LƯỢNG",
+      "unit": "Vnđ/Lượng",
+      "buy_price": 92500000,
+      "sell_price": 94500000
+    }
+  ],
+  "silver": [
+    {
+      "category": "BẠC THƯƠNG HIỆU PHÚ QUÝ",
+      "product": "BẠC MIẾNG PHÚ QUÝ 999 1 LƯỢNG",
+      "unit": "Vnđ/Lượng",
+      "buy_price": 3848000,
+      "sell_price": 3967000
+    }
+  ]
 }
 ```
 
@@ -114,16 +120,16 @@ sudo journalctl -u gold-price-api -f
 
 ```bash
 # Health check
-curl http://localhost:8000/
+curl http://localhost:8001/
 
 # Get all prices
-curl http://localhost:8000/prices
+curl http://localhost:8001/prices
 
 # Get gold prices only
-curl http://localhost:8000/prices/gold
+curl http://localhost:8001/prices/gold
 
 # Get silver prices only
-curl http://localhost:8000/prices/silver
+curl http://localhost:8001/prices/silver
 ```
 
 ## License
